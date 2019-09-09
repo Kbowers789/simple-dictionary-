@@ -27,7 +27,7 @@ def callapi():
         if word[index] == ' ':
             word = word[:index] + '_' + word[index+1:]
 
-    url = "https://od-api.oxforddictionaries.com/api/v1/entries/en/" + word
+    url = "https://od-api.oxforddictionaries.com/api/v2/entries/en/" + word
 
     header = {'app_id': appid, 'app_key': appkey}
 
