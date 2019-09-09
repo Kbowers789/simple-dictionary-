@@ -16,7 +16,7 @@ global respdict
 # Function for making the main request to the Oxford Dictionary API, using my account credentials
 def callapi():
     # setting up request for dictionary api
-    appkey = "6231bc96c076e3cc116425b01f9e87dc"
+    appkey = "527c5d29e9802b72a92663bad9b8c3f6"
     appid = "14631769"
 
     word = invar.get()
@@ -27,7 +27,7 @@ def callapi():
         if word[index] == ' ':
             word = word[:index] + '_' + word[index+1:]
 
-    url = "https://od-api.oxforddictionaries.com/api/v2/entries/en/" + word
+    url = "https://od-api.oxforddictionaries.com/api/v2/entries/en-gb/" + word
 
     header = {'app_id': appid, 'app_key': appkey}
 
@@ -177,8 +177,10 @@ def casechange():
 # Function to call, format, and output the synonym and antonym lists
 def wordlists(listopt):
     # formatting and data for api call
-    appkey = "6231bc96c076e3cc116425b01f9e87dc"
+    appkey = "527c5d29e9802b72a92663bad9b8c3f6"
     appid = "14631769"
+
+    fields = "?fields='synonyms,antonyms'"
 
     word2 = invar.get()
     word2 = word2.lower()
@@ -187,7 +189,7 @@ def wordlists(listopt):
         if word2[index] == ' ':
             word2 = word2[:index] + '_' + word2[index+1:]
 
-    url2 = "https://od-api.oxforddictionaries.com/api/v1/entries/en/" + word2 + "/synonyms;antonyms"
+    url2 = "https://od-api.oxforddictionaries.com/api/v2/thesaurus/en/" + word2 + fields
 
     header = {'app_id': appid, 'app_key': appkey}
 
