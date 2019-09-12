@@ -19,6 +19,8 @@ def callapi():
     appkey = "527c5d29e9802b72a92663bad9b8c3f6"
     appid = "14631769"
 
+    header = {'app_id': appid, 'app_key': appkey}
+
     word = invar.get()
     word = word.lower()
 
@@ -27,64 +29,83 @@ def callapi():
         if word[index] == ' ':
             word = word[:index] + '_' + word[index+1:]
 
-    url = "https://od-api.oxforddictionaries.com/api/v2/entries/en-gb/" + word
-
-    header = {'app_id': appid, 'app_key': appkey}
-
-    wordreq = urllib.request.Request(url, data=None, headers=header)
+    # using Oxfords Lemmas request to make sure we have a 'findable' word (or root of word)
+    # to make dictionary request with
+    lemmaurl = "https://od-api.oxforddictionaries.com/api/v2/lemmas/en/" + word
+    lemmareq = urllib.request.Request(lemmaurl, data=None, headers=header)
 
     # try-except block for making the actual call to the api; used to avoid the program crashing if there is an error.
     try:
-        wordres = urllib.request.urlopen(wordreq)
+        lemmares = urllib.request.urlopen(lemmareq)
 
     except Exception as err:
-
-        tkinter.messagebox.showerror("Error", "Error connecting to server:" + str(err))
+        tkinter.messagebox.showerror("Error", str(err))
 
     else:
-        if wordres.getcode() != 200:
-            tkinter.messagebox.showerror("Error", "Response error: " + wordres.getcode())
+        if lemmares.getcode() != 200:
+            tkinter.messagebox.showerror("Error", "Response error: " + lemmares.getcode())
 
         else:
-            # reading api response into a processable python dictionary object
-            response = wordres.read()
-            response = response.decode("utf-8")
-            global respdict
-            respdict = json.loads(response)
+            resp = lemmares.read()
+            resp = resp.decode("utf-8")
+            lemmadict = json.loads(resp)
+            word = lemmadict["results"][0]["lexicalEntries"][0]["inflectionOf"][0]["text"]
+            print(word)
 
-            count = 0
+            url = "https://od-api.oxforddictionaries.com/api/v2/entries/en-gb/" + word
+            wordreq = urllib.request.Request(url, data=None, headers=header)
 
-            # shorthand to help with the length of the nested dictionary key references
-            res = 'results'
-            le = 'lexicalEntries'
-            ens = 'entries'
-            sen = 'senses'
-            defs = 'definitions'
+            # try-except block for making the second call to the api
+            try:
+                wordres = urllib.request.urlopen(wordreq)
 
-            # the final string that will be sent to the output box
-            textblock = respdict[res][0]["id"] + "\n\n"
+            except Exception as err:
+                tkinter.messagebox.showerror("Error", str(err))
 
-            # loop to check for any etymology information included in response
-            if 'etymologies' in respdict[res][0][le][0][ens][0]:
-                textblock += "Etymology:\n\n" + respdict[res][0][le][0][ens][0]["etymologies"][0] + "\n"
+            else:
+                if wordres.getcode() != 200:
+                    tkinter.messagebox.showerror("Error", "Response error: " + wordres.getcode())
 
-                textblock += "\nDefinitions:\n"
+                else:
+                    # reading api response into a processable python dictionary object
+                    response = wordres.read()
+                    response = response.decode("utf-8")
+                    global respdict
+                    respdict = json.loads(response)
 
-                # loop to find every instance of a definition and it's related examples in each list entry within
-                # the larger response dictionary
-                for index in range(0, len(respdict[res][0][le])):
-                    if 'entries' in respdict[res][0][le][index]:
-                        count += 1
-                        textblock += "\n" + str(count) + ". " + respdict[res][0][le][index]["lexicalCategory"] + ": " +\
-                            respdict[res][0][le][index][ens][0][sen][0][defs][0] + "\n"
-                        if "examples" in respdict[res][0][le][index][ens][0][sen][0]:
-                            for i in range(0, len(respdict[res][0][le][index][ens][0][sen][0]["examples"])):
-                                if 'text' in respdict[res][0][le][index][ens][0][sen][0]["examples"][i]:
-                                    textblock += "\tExample: " +\
-                                                 respdict[res][0][le][index][ens][0][sen][0]["examples"][i]["text"] +\
-                                                 "\n"
+                    count = 0
 
-                defout.set(textblock)
+                    # shorthand to help with the length of the nested dictionary key references
+                    res = 'results'
+                    le = 'lexicalEntries'
+                    ens = 'entries'
+                    sen = 'senses'
+                    defs = 'definitions'
+
+                    # the final string that will be sent to the output box
+                    textblock = respdict[res][0]["id"] + "\n\n"
+
+                    # loop to check for any etymology information included in response
+                    if 'etymologies' in respdict[res][0][le][0][ens][0]:
+                        textblock += "Etymology:\n\n" + respdict[res][0][le][0][ens][0]["etymologies"][0] +\
+                                    "\n\nDefinitions:\n"
+
+                        # loop to find every instance of a definition and it's related examples in each list entry within
+                        # the larger response dictionary
+                        for index in range(0, len(respdict[res][0][le])):
+                            if 'entries' in respdict[res][0][le][index]:
+                                count += 1
+                                textblock += "\n" + str(count) + ". " + \
+                                         respdict[res][0][le][index]["lexicalCategory"]["text"] + ": " + \
+                                         respdict[res][0][le][index][ens][0][sen][0][defs][0] + "\n"
+                                if "examples" in respdict[res][0][le][index][ens][0][sen][0]:
+                                    for i in range(0, len(respdict[res][0][le][index][ens][0][sen][0]["examples"])):
+                                        if 'text' in respdict[res][0][le][index][ens][0][sen][0]["examples"][i]:
+                                            textblock += "\tExample: " +\
+                                                     respdict[res][0][le][index][ens][0][sen][0]["examples"][i]["text"]\
+                                                     + "\n"
+
+                    defout.set(textblock)
 
                 # resetting the optional word list output boxes, so every time a new word is searched,
                 # there is no residual information from the previous call
