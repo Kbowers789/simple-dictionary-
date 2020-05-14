@@ -253,18 +253,15 @@ def wordlists(listopt):
 
     # loop/if statement combination to search each entry and each entry in each sub-dictionary
     # for anything listed as a synonym or antonym, to be added to the respective sets
-    for entry in merweb_thes_resp:
-        for key in merweb_thes_resp[0]:
-            if key == 'syns' and entry[key].length > 0:
-                for index in entry[key]:
-                    for index2 in entry[key][index]:
-                        synset.add(entry[key][index][index2])
-                        print(entry[key][index][index2])
-            if key == 'ants' and entry[key].length > 0:
-                for index3 in entry[key]:
-                    for index4 in entry[key][index3]:
-                        antset.add(entry[key][index3][index4])
-                        print(entry[key][index3][index4])
+    for key in merweb_thes_resp[0]["meta"]:
+        if key == 'syns':
+            for index in range(0,len(merweb_thes_resp[0]["meta"][key])):
+                for index2 in range(0, len(merweb_thes_resp[0]["meta"][key][index])):
+                    synset.add(merweb_thes_resp[0]["meta"][key][index][index2])
+        if key == 'ants':
+            for index3 in range(0,len(merweb_thes_resp[0]["meta"][key])):
+                for index4 in range(0, len(merweb_thes_resp[0]["meta"][key][index3])):
+                    antset.add(merweb_thes_resp[0]["meta"][key][index3][index4])
 
     # changing the sets to lists so they can be sorted and formatted to remove/replace anything
     # not cleaned up by the decode call (specifically whitespaces and apostrophes)
