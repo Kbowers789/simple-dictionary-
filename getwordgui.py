@@ -5,21 +5,22 @@ import tkinter
 import tkinter.messagebox
 import json
 import urllib.request
-# import pygame
+import pygame
 
-# using a global dictionary for the main API response, to avoid making the same call multiple times for each individual
+# using global dictionaries for the main API responses, to avoid making the same call multiple times for each individual
 # widget callback function, since they are specific enough that one callback function cannot manage all variables
 # and all changes in variables that could happen in the main window.
-global respdict
-
+global oxford_dict_resp
+global merweb_thes_resp
+global datamuse_rhyme_resp
 
 # Function for making the main request to the Oxford Dictionary API, using my account credentials
-def callapi():
-    # setting up request for dictionary api
-    appkey = "527c5d29e9802b72a92663bad9b8c3f6"
-    appid = "14631769"
+def callapis():
+    # setting up request for Oxford dictionary api
+    ox_appkey = "527c5d29e9802b72a92663bad9b8c3f6"
+    ox_appid = "14631769"
 
-    header = {'app_id': appid, 'app_key': appkey}
+    header = {'app_id': ox_appid, 'app_key': ox_appkey}
 
     word = invar.get()
     word = word.lower()
@@ -29,7 +30,7 @@ def callapi():
         if word[index] == ' ':
             word = word[:index] + '_' + word[index+1:]
 
-    # using Oxfords Lemmas request to make sure we have a 'findable' word (or root of word)
+    # using Oxfords Lemmas request to first make sure we have a 'findable' word (or root of word)
     # to make dictionary request with
     lemmaurl = "https://od-api.oxforddictionaries.com/api/v2/lemmas/en/" + word
     lemmareq = urllib.request.Request(lemmaurl, data=None, headers=header)
@@ -46,11 +47,11 @@ def callapi():
             tkinter.messagebox.showerror("Error", "Response error: " + lemmares.getcode())
 
         else:
+            # reading api response into a processable python dictionary object
             resp = lemmares.read()
             resp = resp.decode("utf-8")
             lemmadict = json.loads(resp)
             word = lemmadict["results"][0]["lexicalEntries"][0]["inflectionOf"][0]["text"]
-            print(word)
 
             url = "https://od-api.oxforddictionaries.com/api/v2/entries/en-gb/" + word
             wordreq = urllib.request.Request(url, data=None, headers=header)
@@ -70,8 +71,8 @@ def callapi():
                     # reading api response into a processable python dictionary object
                     response = wordres.read()
                     response = response.decode("utf-8")
-                    global respdict
-                    respdict = json.loads(response)
+                    global oxford_dict_resp
+                    oxford_dict_resp = json.loads(response)
 
                     count = 0
 
@@ -83,35 +84,81 @@ def callapi():
                     defs = 'definitions'
 
                     # the final string that will be sent to the output box
-                    textblock = respdict[res][0]["id"] + "\n\n"
+                    textblock = oxford_dict_resp[res][0]["id"] + "\n\n"
 
                     # loop to check for any etymology information included in response
-                    if 'etymologies' in respdict[res][0][le][0][ens][0]:
-                        textblock += "Etymology:\n\n" + respdict[res][0][le][0][ens][0]["etymologies"][0] +\
+                    if 'etymologies' in oxford_dict_resp[res][0][le][0][ens][0]:
+                        textblock += "Etymology:\n\n" + oxford_dict_resp[res][0][le][0][ens][0]["etymologies"][0] +\
                                     "\n\nDefinitions:\n"
 
                         # loop to find every instance of a definition and it's related examples in each list entry within
                         # the larger response dictionary
-                        for index in range(0, len(respdict[res][0][le])):
-                            if 'entries' in respdict[res][0][le][index]:
+                        for index in range(0, len(oxford_dict_resp[res][0][le])):
+                            if 'entries' in oxford_dict_resp[res][0][le][index]:
                                 count += 1
                                 textblock += "\n" + str(count) + ". " + \
-                                         respdict[res][0][le][index]["lexicalCategory"]["text"] + ": " + \
-                                         respdict[res][0][le][index][ens][0][sen][0][defs][0] + "\n"
-                                if "examples" in respdict[res][0][le][index][ens][0][sen][0]:
-                                    for i in range(0, len(respdict[res][0][le][index][ens][0][sen][0]["examples"])):
-                                        if 'text' in respdict[res][0][le][index][ens][0][sen][0]["examples"][i]:
+                                         oxford_dict_resp[res][0][le][index]["lexicalCategory"]["text"] + ": " + \
+                                         oxford_dict_resp[res][0][le][index][ens][0][sen][0][defs][0] + "\n"
+                                if "examples" in oxford_dict_resp[res][0][le][index][ens][0][sen][0]:
+                                    for i in range(0, len(oxford_dict_resp[res][0][le][index][ens][0][sen][0]["examples"])):
+                                        if 'text' in oxford_dict_resp[res][0][le][index][ens][0][sen][0]["examples"][i]:
                                             textblock += "\tExample: " +\
-                                                     respdict[res][0][le][index][ens][0][sen][0]["examples"][i]["text"]\
+                                                     oxford_dict_resp[res][0][le][index][ens][0][sen][0]["examples"][i]["text"]\
                                                      + "\n"
 
                     defout.set(textblock)
 
-                # resetting the optional word list output boxes, so every time a new word is searched,
-                # there is no residual information from the previous call
-                synout.set("")
-                antout.set("")
-                rhyout.set("")
+    # formatting and data for Merriam-Webster Thesaurus api call for synonyms and antonyms
+    mw_appkey = "aa7eb9b2-7314-4c55-b25f-c339d65d6d8e"
+    url2 = "https://dictionaryapi.com/api/v3/references/thesaurus/json/" + word + "?key=" + mw_appkey
+
+    wordreq2 = urllib.request.Request(url2)
+
+    try:
+        wordres2 = urllib.request.urlopen(wordreq2)
+
+    except Exception as err:
+
+        tkinter.messagebox.showerror("Error", "Error connecting to server:" + str(err))
+
+    else:
+        if wordres2.getcode() != 200:
+            tkinter.messagebox.showerror("Error", "Response error:\n" + wordres2.getcode())
+
+        else:
+            response2 = wordres2.read()
+            response2 = response2.decode("utf-8")
+            global merweb_thes_resp
+            merweb_thes_resp = json.loads(response2)
+
+    # formatting and data for Datamuse api call to get rhyming words
+    for char in word:
+        if char == ' ':
+            word = word[:char.index()] + '+' + word[(char.index() + 1):]
+
+    url = "https://api.datamuse.com/words?rel_rhy=" + word + "&max=25"
+
+    try:
+        rhyres = urllib.request.urlopen(url)
+
+    except Exception as err:
+        tkinter.messagebox.showerror("Server Error", "Error connecting to server:" + str(err))
+
+    else:
+        if rhyres.getcode() != 200:
+            tkinter.messagebox.showerror("Error", "Response error: " + rhyres.getcode())
+
+        else:
+            response = rhyres.read()
+            response = response.decode("utf-8")
+            global datamuse_rhyme_resp
+            datamuse_rhyme_resp = json.loads(response)
+
+    # resetting the optional word list output boxes, so every time a new word is searched,
+    # there is no residual information from the previous call
+    synout.set("")
+    antout.set("")
+    rhyout.set("")
 
 
 # Function to handle case changes from the radio buttons
@@ -197,179 +244,93 @@ def casechange():
 
 # Function to call, format, and output the synonym and antonym lists
 def wordlists(listopt):
-    # formatting and data for api call
-    appkey = "527c5d29e9802b72a92663bad9b8c3f6"
-    appid = "14631769"
+    textblock = "Synonyms:\n\n"
+    textblock2 = "Antonyms:\n\n"
+    global merweb_thes_resp
+    # each word list initialized as a set, to avoid returning multiple instances of a word
+    synset = set()
+    antset = set()
 
-    fields = "?fields='synonyms,antonyms'"
+    # loop/if statement combination to search each entry and each entry in each sub-dictionary
+    # for anything listed as a synonym or antonym, to be added to the respective sets
+    for entry in merweb_thes_resp:
+        for key in merweb_thes_resp[0]:
+            if key == 'syns' and entry[key].length > 0:
+                for index in entry[key]:
+                    for index2 in entry[key][index]:
+                        synset.add(entry[key][index][index2])
+                        print(entry[key][index][index2])
+            if key == 'ants' and entry[key].length > 0:
+                for index3 in entry[key]:
+                    for index4 in entry[key][index3]:
+                        antset.add(entry[key][index3][index4])
+                        print(entry[key][index3][index4])
 
-    word2 = invar.get()
-    word2 = word2.lower()
-
-    for index in range(0, len(word2)):
-        if word2[index] == ' ':
-            word2 = word2[:index] + '_' + word2[index+1:]
-
-    url2 = "https://od-api.oxforddictionaries.com/api/v2/thesaurus/en/" + word2 + fields
-
-    header = {'app_id': appid, 'app_key': appkey}
-
-    wordreq2 = urllib.request.Request(url2, data=None, headers=header)
-
-    # call to Oxford Dictionary API, requesting only synonyms & antonyms of specified word
-    try:
-        wordres2 = urllib.request.urlopen(wordreq2)
-
-    except Exception as err:
-
-        tkinter.messagebox.showerror("Error", "Error connecting to server:" + str(err))
-
+    # changing the sets to lists so they can be sorted and formatted to remove/replace anything
+    # not cleaned up by the decode call (specifically whitespaces and apostrophes)
+    # also refers to the current setting of the scale bar variable to determine the length of the lists
+    synset = sorted(list(synset))
+    if not synset:
+        textblock += "--NONE--"
     else:
-        if wordres2.getcode() != 200:
-            tkinter.messagebox.showerror("Error", "Response error:\n" + wordres2.getcode())
-
-        else:
-            response2 = wordres2.read()
-            response2 = response2.decode("utf-8")
-            respdict2 = json.loads(response2)
-
-            res = 'results'
-            le = 'lexicalEntries'
-            ens = 'entries'
-            sen = 'senses'
-            ant = 'antonyms'
-            syn = 'synonyms'
-            subs = 'subsenses'
-
-            textblock = "Synonyms:\n\n"
-            textblock2 = "Antonyms:\n\n"
-
-            # each word list initialized as a set, to avoid returning multiple instances of a word
-            synset = set()
-            antset = set()
-
-            # loop/if statement combination to search each entry and each entry in each sub-dictionary
-            # for anything listed as a synonym or antonym, to be added to the respective sets
-            for i4 in range(0, len(respdict2[res])):
-                for index in range(0, len(respdict2[res][i4][le])):
-                    if ens in respdict2[res][i4][le][index]:
-                        for index2 in range(0, len(respdict2[res][i4][le][index][ens][0][sen])):
-                            if syn in respdict2[res][i4][le][index][ens][0][sen][index2]:
-                                for si in range(0, len(respdict2[res][i4][le][index][ens][0][sen][index2][syn])):
-                                    synset.add(respdict2[res][i4][le][index][ens][0][sen][index2][syn][si]["id"])
-                            if ant in respdict2[res][i4][le][index][ens][0][sen][index2]:
-                                for ai in range(0, len(respdict2[res][i4][le][index][ens][0][sen][index2][ant])):
-                                    antset.add(respdict2[res][i4][le][index][ens][0][sen][index2][ant][ai]["id"])
-
-                            if subs in respdict2[res][i4][le][index][ens][0][sen][index2]:
-                                for i2 in range(0, len(respdict2[res][i4][le][index][ens][0][sen][index2][subs])):
-                                    if syn in respdict2[res][i4][le][index][ens][0][sen][index2][subs][i2]:
-                                        for i3 in range(0,
-                                                        len(respdict2[res][i4][le][index][ens][0][sen][index2]
-                                                            [subs][i2][syn])):
-                                            synset.add(
-                                                respdict2[res][i4][le][index][ens][0][sen][index2][subs][i2][syn]
-                                                [i3]["id"])
-                                    if ant in respdict2[res][i4][le][index][ens][0][sen][index2][subs][i2]:
-                                        for ai3 in range(0,
-                                                         len(respdict2[res][i4][le][index][ens][0][sen][index2][subs]
-                                                             [i2][ant])):
-                                            antset.add(respdict2[res][i4][le][index][ens][0][sen][index2]
-                                                       [subs][i2][ant][ai3]["id"])
-
-            # changing the sets to lists so they can be sorted and formatted to remove/replace anything
-            # not cleaned up by the decode call (specifically whitespaces and apostrophes)
-            # also refers to the current setting of the scale bar variable to determine the length of the lists
-            synset = sorted(list(synset))
-            if not synset:
-                textblock += "--NONE--"
+        for item in range(0, listnum.get()):
+            if item < len(synset):
+                synset[item] = synset[item][0].upper() + synset[item][1:]
+                while '_' in synset[item]:
+                    x = synset[item].index('_')
+                    synset[item] = synset[item][:x] + ' ' + synset[item][x+1:]
+                if '%' in synset[item]:
+                    y = synset[item].index('%')
+                    synset[item] = synset[item][:y] + "'" + synset[item][y+3:]
+                textblock += synset[item] + "\n"
             else:
-                for item in range(0, listnum.get()):
-                    if item < len(synset):
-                        synset[item] = synset[item][0].upper() + synset[item][1:]
-                        while '_' in synset[item]:
-                            x = synset[item].index('_')
-                            synset[item] = synset[item][:x] + ' ' + synset[item][x+1:]
-                        if '%' in synset[item]:
-                            y = synset[item].index('%')
-                            synset[item] = synset[item][:y] + "'" + synset[item][y+3:]
-                        textblock += synset[item] + "\n"
-                    else:
-                        break
+                break
 
-            antset = sorted(list(antset))
-            if not antset:
-                textblock2 += "--NONE--"
+    antset = sorted(list(antset))
+    if not antset:
+        textblock2 += "--NONE--"
+    else:
+        for item2 in range(0, listnum.get()):
+            if item2 < len(antset):
+                antset[item2] = antset[item2][0].upper() + antset[item2][1:]
+                while '_' in antset[item2]:
+                    x = antset[item2].index('_')
+                    antset[item2] = antset[item2][:x] + ' ' + antset[item2][x+1:]
+                if '%' in antset[item2]:
+                    z = antset[item2].index('%')
+                    antset[item2] = antset[item2][:z] + "'" + antset[item2][z+3:]
+                textblock2 += antset[item2] + "\n"
             else:
-                for item2 in range(0, listnum.get()):
-                    if item2 < len(antset):
-                        antset[item2] = antset[item2][0].upper() + antset[item2][1:]
-                        while '_' in antset[item2]:
-                            x = antset[item2].index('_')
-                            antset[item2] = antset[item2][:x] + ' ' + antset[item2][x+1:]
-                        if '%' in antset[item2]:
-                            z = antset[item2].index('%')
-                            antset[item2] = antset[item2][:z] + "'" + antset[item2][z+3:]
-                        textblock2 += antset[item2] + "\n"
-                    else:
-                        break
+                break
 
-            # determining which lists to include in output, based on the option menu widget
-            # any list not included is 'reset' to an empty string
-            if listopt == "Synonyms Only":
-                synout.set(textblock)
-                antout.set("")
-            elif listopt == "Antonyms Only":
-                antout.set(textblock2)
-                synout.set("")
-            else:
-                synout.set(textblock)
-                antout.set(textblock2)
+    # determining which lists to include in output, based on the option menu widget
+    # any list not included is 'reset' to an empty string
+    if listopt == "Synonyms Only":
+        synout.set(textblock)
+        antout.set("")
+    elif listopt == "Antonyms Only":
+        antout.set(textblock2)
+        synout.set("")
+    else:
+        synout.set(textblock)
+        antout.set(textblock2)
 
 
 # Function to call, format, and output a list of rhyming words from the datamuse API
 def rhymewords():
-    # checking value of checkbox - will not make extraneous call to api if not checked
+    # checking value of checkbox to see if list display is necessary (unchecked by default)
     if rhymelist.get() == 1:
-
-        word = invar.get()
-        word = word.lower()
-
-        for char in word:
-            if char == ' ':
-                word = word[:char.index()] + '+' + word[(char.index() + 1):]
-
-        url = "https://api.datamuse.com/words?rel_rhy=" + word + "&max=25"
-
-        try:
-            rhyres = urllib.request.urlopen(url)
-
-        except Exception as err:
-            tkinter.messagebox.showerror("Server Error", "Error connecting to server:" + str(err))
-
-        else:
-            if rhyres.getcode() != 200:
-                tkinter.messagebox.showerror("Error", "Response error: " + rhyres.getcode())
-
-            else:
-                response = rhyres.read()
-                response = response.decode("utf-8")
-
-                rhydict = json.loads(response)
-
-                rhyblock = "Rhyming words:\n\n"
-
-                if not rhydict:
+        rhyblock = "Rhyming words:\n\n"
+        if not datamuse_rhyme_resp:
                     rhyblock += "--NONE--"
-                else:
-                    # formatting and compiling list of rhymes from api response dictionary
-                    # refers to the current setting of the scale bar variable to determine the length of the list
-                    for index in range(0, listnum.get()):
-                        if index < len(rhydict):
-                            word = rhydict[index]['word']
-                            word = word[0].upper() + word[1:]
-                            rhyblock += word + "\n"
-
+        else:
+            # formatting and compiling list of rhymes from api response dictionary
+            # refers to the current setting of the scale bar variable to determine the length of the list
+            for index in range(0, listnum.get()):
+                if index < len(datamuse_rhyme_resp):
+                    word = datamuse_rhyme_resp[index]['word']
+                    word = word[0].upper() + word[1:]
+                    rhyblock += word + "\n"
                 rhyout.set(rhyblock)
     else:
         rhyout.set("")
@@ -377,25 +338,25 @@ def rhymewords():
 
 # Function to produce the audio pronunciation file
 # while also creating a popup message box with thr IPA phonetic spelling
-# def hearword():
-#     # initializing audio
-#     pygame.mixer.init()
-#
-#     # returning the relevant mp3 information from the global dicionary created upon the original api request
-#     mp3url = respdict['results'][0]['lexicalEntries'][0]["pronunciations"][0]["audioFile"]
-#
-#     # retrieval, and playback of mp3 file from the given url
-#     mp3file, headers = urllib.request.urlretrieve(mp3url)
-#
-#     pygame.mixer.music.load(mp3file)
-#     pygame.mixer.music.play()
-#
-#     # while the audio file is being processed and played by pygame's module, the event manager will create a popup
-#     # which includes the phonetic spelling of the word currently being heard
-#     tkinter.messagebox.showinfo("Pronunciation", "IPA Phonetic Spelling: " +
-#                                 respdict['results'][0]['lexicalEntries'][0]["pronunciations"][0]["phoneticSpelling"])
-#
-#     pygame.mixer.quit()
+def hearword():
+    # initializing audio
+    pygame.mixer.init()
+    global oxford_dict_resp
+    # returning the relevant mp3 information from the global dicionary created upon the original api request
+    mp3url = oxford_dict_resp['results'][0]['lexicalEntries'][0]["pronunciations"][0]["audioFile"]
+
+    # retrieval, and playback of mp3 file from the given url
+    mp3file, headers = urllib.request.urlretrieve(mp3url)
+
+    pygame.mixer.music.load(mp3file)
+    pygame.mixer.music.play()
+
+    # while the audio file is being processed and played by pygame's module, the event manager will create a popup
+    # which includes the phonetic spelling of the word currently being heard
+    tkinter.messagebox.showinfo("Pronunciation", "IPA Phonetic Spelling: " +
+                                oxford_dict_resp['results'][0]['lexicalEntries'][0]["pronunciations"][0]["phoneticSpelling"])
+
+    pygame.mixer.quit()
 
 
 # Function to update the three word lists based on any change in the scale bar
@@ -438,12 +399,12 @@ resultbox.grid(row=6, column=0, columnspan=3, sticky="nesw")
 resultbox.config(anchor='nw', bg="white")
 
 # button to call to main api request function, and to produce the definition results
-getword = tkinter.Button(popup, text="Lookup", command=callapi)
+getword = tkinter.Button(popup, text="Lookup", command=callapis)
 getword.grid(row=2, column=2, rowspan=2, sticky="nesw")
 getword.config(bg="grey")
 
 # button to trigger hearing and seeing the popup pronunciation information
-pron = tkinter.Button(popup, text="Pronunciation", command=None)
+pron = tkinter.Button(popup, text="Pronunciation", command=hearword)
 pron.grid(row=4, column=3, sticky="nesw")
 pron.config(bg="grey")
 
