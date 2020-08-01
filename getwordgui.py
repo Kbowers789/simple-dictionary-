@@ -370,7 +370,7 @@ def wordlists2():
 popup = tkinter.Tk()
 popup.title("Dictionary & Thesaurus Look Up")
 popup.lift()
-popup.minsize(800, 500)
+popup.minsize(500, 300)
 popup.configure(bg="light blue")
 
 # Widget creation and specs
@@ -387,7 +387,7 @@ resultlabel.config(bg="light blue")
 # entry box for entering the word to search
 invar = tkinter.StringVar()
 wordbox = tkinter.Entry(popup, textvariable=invar)
-wordbox.grid(row=2, column=0, columnspan=2, rowspan=2, sticky="nesw")
+wordbox.grid(row=2, column=0, columnspan=2, sticky="nesw")
 
 # result text box for definition and etymology information
 defout = tkinter.StringVar()
@@ -397,7 +397,7 @@ resultbox.config(anchor='nw', bg="white")
 
 # button to call to main api request function, and to produce the definition results
 getword = tkinter.Button(popup, text="Lookup", command=callapis)
-getword.grid(row=2, column=2, rowspan=2, sticky="nesw")
+getword.grid(row=3, column=0, columnspan=2, sticky="nesw")
 getword.config(bg="grey")
 
 # button to trigger hearing and seeing the popup pronunciation information
